@@ -14,6 +14,8 @@ const TusFacturasApp = () => {
   // 📊 Estados de la app
   const [templates, setTemplates] = useState([]);
   const [clientes, setClientes] = useState([]);
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [newClient, setNewClient] = useState({ nombre: '', email: '', documento: '' });
   const [editingField, setEditingField] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -153,6 +155,24 @@ const TusFacturasApp = () => {
       console.log('💾 Templates guardados automáticamente');
     } catch (err) {
       console.error('Error guardando templates:', err);
+    }
+  };
+
+  // 💾 Guardar clientes automáticamente
+  const guardarClientes = async (clientesActualizados) => {
+    try {
+      await fetch(`${API_BASE_URL}/api/clientes/guardar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clientes: clientesActualizados
+        })
+      });
+      console.log('💾 Clientes guardados automáticamente');
+    } catch (err) {
+      console.error('Error guardando clientes:', err);
     }
   };
 
