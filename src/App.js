@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2 } from 'lucide-react';
+import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2, LogOut } from 'lucide-react';
 
-// URL del backend en producción (cambiar por tu URL de Railway)
+// URL del backend en producción
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 const TusFacturasApp = () => {
+  // 🔐 Estados de autenticación
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // 📊 Estados de la app
   const [templates, setTemplates] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [editingField, setEditingField] = useState(null);
@@ -16,11 +23,49 @@ const TusFacturasApp = () => {
   const [success, setSuccess] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('checking');
 
-  // Test de conexión inicial
+  // Verificar si hay sesión guardada al cargar
   useEffect(() => {
-    testConnection();
+    const savedAuth = sessionStorage.getItem('tusfacturas_auth');
+    if (savedAuth === 'true') {
+      setIsAuthenticated(true);
+      testConnection();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
+  // 🔐 Función de login
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError('');
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const validUsername = 'Monica';
+    const validPassword = 'Nacho2025!';
+
+    if (loginForm.username === validUsername && loginForm.password === validPassword) {
+      sessionStorage.setItem('tusfacturas_auth', 'true');
+      setIsAuthenticated(true);
+      testConnection();
+    } else {
+      setLoginError('Usuario o contraseña incorrectos');
+    }
+
+    setIsLoggingIn(false);
+  };
+
+  // 🚪 Función de logout
+  const handleLogout = () => {
+    sessionStorage.removeItem('tusfacturas_auth');
+    setIsAuthenticated(false);
+    setTemplates([]);
+    setClientes([]);
+    setLoginForm({ username: '', password: '' });
+  };
+
+  // 🔌 Test de conexión inicial
   const testConnection = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/test`);
@@ -34,11 +79,11 @@ const TusFacturasApp = () => {
     } catch (err) {
       setConnectionStatus('error');
       setError('Error de conexión con el servidor');
-      // Cargar datos de ejemplo para demo
       cargarDatosEjemplo();
     }
   };
 
+  // 📥 Cargar datos desde TusFacturas
   const cargarDatos = async () => {
     setLoading(true);
     setError(null);
@@ -63,13 +108,13 @@ const TusFacturasApp = () => {
     } catch (err) {
       console.error('❌ Error cargando datos:', err);
       setError('Error al cargar datos de TusFacturas');
-      // Fallback a datos de ejemplo
       cargarDatosEjemplo();
     } finally {
       setLoading(false);
     }
   };
 
+  // 📝 Cargar datos de ejemplo (fallback)
   const cargarDatosEjemplo = () => {
     console.log('📝 Cargando datos de ejemplo...');
     
@@ -93,28 +138,55 @@ const TusFacturasApp = () => {
     setLoading(false);
   };
 
-  const handleEdit = (id, field, value) => {
-    setTemplates(templates.map(t => 
-      t.id === id ? { ...t, [field]: field === 'clienteId' ? parseInt(value) : value } : t
-    ));
-    setEditingField(null);
+  // 💾 Guardar templates automáticamente
+  const guardarTemplates = async (templatesActualizados) => {
+    try {
+      await fetch(`${API_BASE_URL}/api/templates/guardar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          templates: templatesActualizados
+        })
+      });
+      console.log('💾 Templates guardados automáticamente');
+    } catch (err) {
+      console.error('Error guardando templates:', err);
+    }
   };
 
+  // ✏️ Editar template
+  const handleEdit = (id, field, value) => {
+    const updatedTemplates = templates.map(t => 
+      t.id === id ? { ...t, [field]: field === 'clienteId' ? parseInt(value) : value } : t
+    );
+    setTemplates(updatedTemplates);
+    setEditingField(null);
+    guardarTemplates(updatedTemplates);
+  };
+
+  // 🔍 Obtener nombre del cliente
   const getClienteName = (clienteId) => {
     const cliente = clientes.find(c => c.id === clienteId);
     return cliente ? cliente.nombre : 'Cliente no encontrado';
   };
 
+  // ☑️ Toggle selección
   const toggleSelection = (id) => {
     setTemplates(templates.map(t => 
       t.id === id ? { ...t, selected: !t.selected } : t
     ));
   };
 
+  // 🗑️ Eliminar template
   const deleteTemplate = (id) => {
-    setTemplates(templates.filter(t => t.id !== id));
+    const updatedTemplates = templates.filter(t => t.id !== id);
+    setTemplates(updatedTemplates);
+    guardarTemplates(updatedTemplates);
   };
 
+  // ➕ Agregar template
   const addTemplate = () => {
     const newId = Math.max(...templates.map(t => t.id), 0) + 1;
     const newTemplate = {
@@ -124,7 +196,9 @@ const TusFacturasApp = () => {
       monto: 0,
       selected: true
     };
-    setTemplates([...templates, newTemplate]);
+    const updatedTemplates = [...templates, newTemplate];
+    setTemplates(updatedTemplates);
+    guardarTemplates(updatedTemplates);
   };
 
   const selectedCount = templates.filter(t => t.selected).length;
@@ -135,6 +209,7 @@ const TusFacturasApp = () => {
     setShowConfirmation(true);
   };
 
+  // 📤 Confirmar y enviar facturas
   const confirmSend = async () => {
     setShowConfirmation(false);
     setSending(true);
@@ -165,12 +240,13 @@ const TusFacturasApp = () => {
         exitosas: result.exitosas,
         fallidas: result.fallidas,
         detalles: result.detalles,
-        modoPrueba: result.modoPrueba || false
+        modoPrueba: result.modo_prueba || false
       });
       
-      // Si todas fueron exitosas, desmarcar
       if (result.fallidas === 0) {
-        setTemplates(templates.map(t => ({ ...t, selected: false })));
+        const updatedTemplates = templates.map(t => ({ ...t, selected: false }));
+        setTemplates(updatedTemplates);
+        guardarTemplates(updatedTemplates);
       }
       
     } catch (err) {
@@ -181,6 +257,82 @@ const TusFacturasApp = () => {
     }
   };
 
+  // 🔐 PANTALLA DE LOGIN
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-block p-3 bg-blue-100 rounded-full mb-4">
+              <Building2 className="w-12 h-12 text-blue-600" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Facturas Automáticas</h1>
+            <p className="text-gray-600">SILVIA MONICA NAHABETIAN</p>
+            <p className="text-sm text-gray-500">CUIT: 27233141246</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Usuario
+              </label>
+              <input
+                type="text"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Ingresá tu usuario"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Ingresá tu contraseña"
+                required
+              />
+            </div>
+
+            {loginError && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <p className="text-red-800 text-sm">{loginError}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
+            >
+              {isLoggingIn ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Ingresando...
+                </>
+              ) : (
+                'Ingresar'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-xs text-gray-500">
+            Sistema de facturación automática
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ⏳ PANTALLA DE CARGA
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -193,11 +345,12 @@ const TusFacturasApp = () => {
     );
   }
 
+  // 🏠 PANTALLA PRINCIPAL
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm border p-6">
-          {/* Header con info de la empresa */}
+          {/* Header */}
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-start gap-4">
               <div className="p-2 bg-blue-50 rounded-lg">
@@ -237,13 +390,22 @@ const TusFacturasApp = () => {
               </div>
             </div>
             
-            <button
-              onClick={addTemplate}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Agregar Template
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={addTemplate}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Agregar Template
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Mensajes de estado */}
