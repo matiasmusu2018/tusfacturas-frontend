@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2, LogOut } from 'lucide-react';
+import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2 } from 'lucide-react';
 
-// URL del backend en producción
+// URL del backend en producción (cambiar por tu URL de Railway)
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 const TusFacturasApp = () => {
-  // Estado de autenticación
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [loginError, setLoginError] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  // Estados de la app
   const [templates, setTemplates] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [editingField, setEditingField] = useState(null);
@@ -23,50 +16,11 @@ const TusFacturasApp = () => {
   const [success, setSuccess] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('checking');
 
-  // Verificar si hay sesión guardada al cargar
+  // Test de conexión inicial
   useEffect(() => {
-    const savedAuth = sessionStorage.getItem('tusfacturas_auth');
-    if (savedAuth === 'true') {
-      setIsAuthenticated(true);
-      testConnection();
-    } else {
-      setLoading(false);
-    }
+    testConnection();
   }, []);
 
-  // Función de login
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setIsLoggingIn(true);
-    setLoginError('');
-
-    // Simular verificación (en producción, esto debería ir al backend)
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const validUsername = 'Monica';
-    const validPassword = 'Nacho2025!';
-
-    if (loginForm.username === validUsername && loginForm.password === validPassword) {
-      sessionStorage.setItem('tusfacturas_auth', 'true');
-      setIsAuthenticated(true);
-      testConnection();
-    } else {
-      setLoginError('Usuario o contraseña incorrectos');
-    }
-
-    setIsLoggingIn(false);
-  };
-
-  // Función de logout
-  const handleLogout = () => {
-    sessionStorage.removeItem('tusfacturas_auth');
-    setIsAuthenticated(false);
-    setTemplates([]);
-    setClientes([]);
-    setLoginForm({ username: '', password: '' });
-  };
-
-  // Test de conexión inicial
   const testConnection = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/test`);
@@ -80,6 +34,7 @@ const TusFacturasApp = () => {
     } catch (err) {
       setConnectionStatus('error');
       setError('Error de conexión con el servidor');
+      // Cargar datos de ejemplo para demo
       cargarDatosEjemplo();
     }
   };
@@ -108,6 +63,7 @@ const TusFacturasApp = () => {
     } catch (err) {
       console.error('❌ Error cargando datos:', err);
       setError('Error al cargar datos de TusFacturas');
+      // Fallback a datos de ejemplo
       cargarDatosEjemplo();
     } finally {
       setLoading(false);
@@ -141,6 +97,7 @@ const TusFacturasApp = () => {
     setTemplates(templates.map(t => 
       t.id === id ? { ...t, [field]: field === 'clienteId' ? parseInt(value) : value } : t
     ));
+    setEditingField(null);
   };
 
   const getClienteName = (clienteId) => {
@@ -207,9 +164,11 @@ const TusFacturasApp = () => {
         total: result.total,
         exitosas: result.exitosas,
         fallidas: result.fallidas,
-        detalles: result.detalles
+        detalles: result.detalles,
+        modoPrueba: result.modoPrueba || false
       });
       
+      // Si todas fueron exitosas, desmarcar
       if (result.fallidas === 0) {
         setTemplates(templates.map(t => ({ ...t, selected: false })));
       }
@@ -222,82 +181,6 @@ const TusFacturasApp = () => {
     }
   };
 
-  // Pantalla de login
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="inline-block p-3 bg-blue-100 rounded-full mb-4">
-              <Building2 className="w-12 h-12 text-blue-600" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Facturas Automáticas</h1>
-            <p className="text-gray-600">SILVIA MONICA NAHABETIAN</p>
-            <p className="text-sm text-gray-500">CUIT: 27233141246</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Usuario
-              </label>
-              <input
-                type="text"
-                value={loginForm.username}
-                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Ingresá tu usuario"
-                required
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Ingresá tu contraseña"
-                required
-              />
-            </div>
-
-            {loginError && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                <p className="text-red-800 text-sm">{loginError}</p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
-            >
-              {isLoggingIn ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Ingresando...
-                </>
-              ) : (
-                'Ingresar'
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center text-xs text-gray-500">
-            Sistema de facturación automática
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Pantalla de carga
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -310,7 +193,6 @@ const TusFacturasApp = () => {
     );
   }
 
-  // Pantalla principal de la app
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -355,22 +237,13 @@ const TusFacturasApp = () => {
               </div>
             </div>
             
-            <div className="flex gap-2">
-              <button
-                onClick={addTemplate}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Agregar Template
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
-                title="Cerrar sesión"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={addTemplate}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Agregar Template
+            </button>
           </div>
 
           {/* Mensajes de estado */}
@@ -393,16 +266,25 @@ const TusFacturasApp = () => {
             <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
                 <CheckCircle className="w-5 h-5" />
-                ¡Facturas enviadas exitosamente!
+                {success.modoPrueba ? '🧪 Simulación completada (MODO PRUEBA)' : '¡Facturas enviadas exitosamente!'}
               </div>
               <div className="text-green-600 text-sm space-y-1">
                 <p>✅ {success.exitosas} de {success.total} facturas procesadas correctamente</p>
                 {success.fallidas > 0 && (
                   <p className="text-red-600">❌ {success.fallidas} facturas fallaron</p>
                 )}
-                <p className="text-xs text-green-500 mt-2">
-                  Las facturas están siendo procesadas por ARCA. Podés verificar el estado en tu panel de TusFacturas.
-                </p>
+                {success.modoPrueba ? (
+                  <div className="mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded">
+                    <p className="text-yellow-800 text-xs font-bold">⚠️ MODO PRUEBA ACTIVO</p>
+                    <p className="text-yellow-700 text-xs">
+                      Esta fue una simulación. NO se enviaron facturas reales a ARCA.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-green-500 mt-2">
+                    Las facturas están siendo procesadas por ARCA. Podés verificar el estado en tu panel de TusFacturas.
+                  </p>
+                )}
               </div>
             </div>
           )}
