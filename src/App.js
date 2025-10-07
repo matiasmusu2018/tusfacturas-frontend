@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2, LogOut } from 'lucide-react';
+import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2, LogOut, UserPlus } from 'lucide-react';
 
-// URL del backend en producción
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 const TusFacturasApp = () => {
@@ -16,6 +15,7 @@ const TusFacturasApp = () => {
   const [clientes, setClientes] = useState([]);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
   const [newClient, setNewClient] = useState({ nombre: '', email: '', documento: '' });
+  const [addingClient, setAddingClient] = useState(false);
   const [editingField, setEditingField] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -25,7 +25,7 @@ const TusFacturasApp = () => {
   const [success, setSuccess] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('checking');
 
-  // Verificar si hay sesión guardada al cargar
+  // Verificar sesión guardada
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('tusfacturas_auth');
     if (savedAuth === 'true') {
@@ -36,7 +36,7 @@ const TusFacturasApp = () => {
     }
   }, []);
 
-  // 🔐 Función de login
+  // 🔐 Login
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoggingIn(true);
@@ -44,10 +44,7 @@ const TusFacturasApp = () => {
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const validUsername = 'Monica';
-    const validPassword = 'Nacho2025!';
-
-    if (loginForm.username === validUsername && loginForm.password === validPassword) {
+    if (loginForm.username === 'Monica' && loginForm.password === 'Nacho2025!') {
       sessionStorage.setItem('tusfacturas_auth', 'true');
       setIsAuthenticated(true);
       testConnection();
@@ -58,7 +55,7 @@ const TusFacturasApp = () => {
     setIsLoggingIn(false);
   };
 
-  // 🚪 Función de logout
+  // 🚪 Logout
   const handleLogout = () => {
     sessionStorage.removeItem('tusfacturas_auth');
     setIsAuthenticated(false);
@@ -67,7 +64,7 @@ const TusFacturasApp = () => {
     setLoginForm({ username: '', password: '' });
   };
 
-  // 🔌 Test de conexión inicial
+  // 🔌 Test de conexión
   const testConnection = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/test`);
@@ -81,17 +78,17 @@ const TusFacturasApp = () => {
     } catch (err) {
       setConnectionStatus('error');
       setError('Error de conexión con el servidor');
-      cargarDatosEjemplo();
+      setLoading(false);
     }
   };
 
-  // 📥 Cargar datos desde TusFacturas
+  // 📥 Cargar datos
   const cargarDatos = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('🔄 Cargando datos desde TusFacturas...');
+      console.log('🔄 Cargando datos...');
       
       const [clientesRes, templatesRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/clientes`),
@@ -109,80 +106,100 @@ const TusFacturasApp = () => {
       
     } catch (err) {
       console.error('❌ Error cargando datos:', err);
-      setError('Error al cargar datos de TusFacturas');
-      cargarDatosEjemplo();
+      setError('Error al cargar datos');
     } finally {
       setLoading(false);
     }
   };
 
-  // 📝 Cargar datos de ejemplo (fallback)
-  const cargarDatosEjemplo = () => {
-    console.log('📝 Cargando datos de ejemplo...');
-    
-    const clientesEjemplo = [
-      { id: 1, nombre: 'Empresa ABC S.A.', email: 'facturacion@empresa-abc.com', documento: '30123456789' },
-      { id: 2, nombre: 'Comercial XYZ Ltda.', email: 'admin@comercial-xyz.com', documento: '20987654321' },
-      { id: 3, nombre: 'Distribuidora Norte', email: 'ventas@distri-norte.com', documento: '27456789123' },
-      { id: 4, nombre: 'Supermercado Central', email: 'contabilidad@super-central.com', documento: '30789123456' }
-    ];
-    
-    const templatesEjemplo = [
-      { id: 1, clienteId: 1, concepto: 'Honorarios Profesionales - {MM_AAAA_ANTERIOR_TEXTO}', monto: 150000, selected: true },
-      { id: 2, clienteId: 2, concepto: 'Servicios de consultoría - {MM_AAAA_ANTERIOR_TEXTO}', monto: 85000, selected: true },
-      { id: 3, clienteId: 3, concepto: 'Asesoramiento técnico - {MM_AAAA_ANTERIOR_TEXTO}', monto: 120000, selected: true },
-      { id: 4, clienteId: 4, concepto: 'Auditoría mensual - {MM_AAAA_ANTERIOR_TEXTO}', monto: 95000, selected: true }
-    ];
-    
-    setClientes(clientesEjemplo);
-    setTemplates(templatesEjemplo);
-    setLastSync(new Date());
-    setLoading(false);
-  };
-
-  // 💾 Guardar templates automáticamente
+  // 💾 Guardar templates
   const guardarTemplates = async (templatesActualizados) => {
     try {
       await fetch(`${API_BASE_URL}/api/templates/guardar`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          templates: templatesActualizados
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templates: templatesActualizados })
       });
-      console.log('💾 Templates guardados automáticamente');
+      console.log('💾 Templates guardados');
     } catch (err) {
       console.error('Error guardando templates:', err);
     }
   };
 
-  // 💾 Guardar clientes automáticamente
+  // 💾 Guardar clientes
   const guardarClientes = async (clientesActualizados) => {
     try {
       await fetch(`${API_BASE_URL}/api/clientes/guardar`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          clientes: clientesActualizados
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientes: clientesActualizados })
       });
-      console.log('💾 Clientes guardados automáticamente');
+      console.log('💾 Clientes guardados');
     } catch (err) {
       console.error('Error guardando clientes:', err);
     }
   };
 
-  // ✏️ Editar template
+  // ➕ Agregar cliente
+  const handleAddClient = async () => {
+    if (!newClient.nombre || !newClient.documento) {
+      alert('Por favor completá nombre y CUIT/DNI');
+      return;
+    }
+
+    setAddingClient(true);
+    setError(null);
+
+    try {
+      console.log('➕ Agregando cliente:', newClient.nombre);
+      
+      const response = await fetch(`${API_BASE_URL}/api/clientes/agregar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cliente: newClient })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('✅ Cliente agregado:', result.cliente);
+        
+        // Agregar a la lista local
+        const clientesActualizados = [...clientes, result.cliente];
+        setClientes(clientesActualizados);
+        guardarClientes(clientesActualizados);
+        
+        // Cerrar modal y limpiar
+        setShowAddClientModal(false);
+        setNewClient({ nombre: '', email: '', documento: '' });
+        
+        setSuccess({
+          exitosas: 1,
+          total: 1,
+          fallidas: 0,
+          modoPrueba: false
+        });
+        
+        setTimeout(() => setSuccess(null), 3000);
+        
+      } else {
+        throw new Error(result.error || 'Error al agregar cliente');
+      }
+
+    } catch (err) {
+      console.error('❌ Error:', err);
+      setError(err.message);
+    } finally {
+      setAddingClient(false);
+    }
+  };
+
+  // ✏️ Editar template - CORREGIDO para no perder focus
   const handleEdit = (id, field, value) => {
     const updatedTemplates = templates.map(t => 
       t.id === id ? { ...t, [field]: field === 'clienteId' ? parseInt(value) : value } : t
     );
     setTemplates(updatedTemplates);
-    setEditingField(null);
     guardarTemplates(updatedTemplates);
   };
 
@@ -208,10 +225,16 @@ const TusFacturasApp = () => {
 
   // ➕ Agregar template
   const addTemplate = () => {
+    if (clientes.length === 0) {
+      alert('Primero agregá un cliente');
+      setShowAddClientModal(true);
+      return;
+    }
+
     const newId = Math.max(...templates.map(t => t.id), 0) + 1;
     const newTemplate = {
       id: newId,
-      clienteId: clientes.length > 0 ? clientes[0].id : 1,
+      clienteId: clientes[0].id,
       concepto: 'Honorarios Profesionales - {MM_AAAA_ACTUAL_TEXTO}',
       monto: 0,
       selected: true
@@ -229,7 +252,7 @@ const TusFacturasApp = () => {
     setShowConfirmation(true);
   };
 
-  // 📤 Confirmar y enviar facturas
+  // 📤 Enviar facturas
   const confirmSend = async () => {
     setShowConfirmation(false);
     setSending(true);
@@ -237,23 +260,18 @@ const TusFacturasApp = () => {
     setSuccess(null);
     
     try {
-      console.log('🚀 Enviando facturas seleccionadas...');
+      console.log('🚀 Enviando facturas...');
       
       const response = await fetch(`${API_BASE_URL}/api/enviar-facturas`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          templates: templates.filter(t => t.selected)
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templates: templates.filter(t => t.selected) })
       });
       
       if (!response.ok) throw new Error('Error al enviar facturas');
       
       const result = await response.json();
-      
-      console.log('✅ Resultado del envío:', result);
+      console.log('✅ Resultado:', result);
       
       setSuccess({
         total: result.total,
@@ -270,7 +288,7 @@ const TusFacturasApp = () => {
       }
       
     } catch (err) {
-      console.error('❌ Error enviando facturas:', err);
+      console.error('❌ Error:', err);
       setError(err.message);
     } finally {
       setSending(false);
@@ -293,9 +311,7 @@ const TusFacturasApp = () => {
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Usuario
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Usuario</label>
               <input
                 type="text"
                 value={loginForm.username}
@@ -308,9 +324,7 @@ const TusFacturasApp = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
               <input
                 type="password"
                 value={loginForm.password}
@@ -343,10 +357,6 @@ const TusFacturasApp = () => {
               )}
             </button>
           </form>
-
-          <div className="mt-6 text-center text-xs text-gray-500">
-            Sistema de facturación automática
-          </div>
         </div>
       </div>
     );
@@ -359,7 +369,6 @@ const TusFacturasApp = () => {
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Conectando con TusFacturas...</p>
-          <p className="text-sm text-gray-500 mt-2">SILVIA MONICA NAHABETIAN - CUIT: 27233141246</p>
         </div>
       </div>
     );
@@ -383,14 +392,14 @@ const TusFacturasApp = () => {
                     onClick={cargarDatos}
                     disabled={loading}
                     className="p-1 text-gray-500 hover:text-blue-600 disabled:opacity-50"
-                    title="Sincronizar con TusFacturas"
+                    title="Sincronizar"
                   >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   </button>
                 </h1>
                 <div className="text-gray-600 text-sm space-y-1">
                   <p className="font-medium">SILVIA MONICA NAHABETIAN</p>
-                  <p>CUIT: 27233141246 • PDV: 00006 • {templates.length} templates</p>
+                  <p>CUIT: 27233141246 • PDV: 00006 • {clientes.length} clientes • {templates.length} templates</p>
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${
                       connectionStatus === 'connected' ? 'bg-green-500' : 
@@ -412,6 +421,13 @@ const TusFacturasApp = () => {
             
             <div className="flex gap-2">
               <button
+                onClick={() => setShowAddClientModal(true)}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                Agregar Cliente
+              </button>
+              <button
                 onClick={addTemplate}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
@@ -428,18 +444,13 @@ const TusFacturasApp = () => {
             </div>
           </div>
 
-          {/* Mensajes de estado */}
+          {/* Mensajes */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-red-800 font-medium">Error de conexión</p>
+                <p className="text-red-800 font-medium">Error</p>
                 <p className="text-red-600 text-sm">{error}</p>
-                {connectionStatus === 'error' && (
-                  <p className="text-red-500 text-xs mt-1">
-                    Mostrando datos de ejemplo. Verificá tu conexión a internet.
-                  </p>
-                )}
               </div>
             </div>
           )}
@@ -448,34 +459,44 @@ const TusFacturasApp = () => {
             <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
                 <CheckCircle className="w-5 h-5" />
-                {success.modoPrueba ? '🧪 Simulación completada (MODO PRUEBA)' : '¡Facturas enviadas exitosamente!'}
+                ¡Operación exitosa!
               </div>
-              <div className="text-green-600 text-sm space-y-1">
-                <p>✅ {success.exitosas} de {success.total} facturas procesadas correctamente</p>
-                {success.fallidas > 0 && (
-                  <p className="text-red-600">❌ {success.fallidas} facturas fallaron</p>
-                )}
-                {success.modoPrueba ? (
-                  <div className="mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded">
-                    <p className="text-yellow-800 text-xs font-bold">⚠️ MODO PRUEBA ACTIVO</p>
-                    <p className="text-yellow-700 text-xs">
-                      Esta fue una simulación. NO se enviaron facturas reales a ARCA.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-xs text-green-500 mt-2">
-                    Las facturas están siendo procesadas por ARCA. Podés verificar el estado en tu panel de TusFacturas.
-                  </p>
-                )}
+              <p className="text-green-600 text-sm">
+                {success.exitosas} de {success.total} procesadas correctamente
+              </p>
+            </div>
+          )}
+
+          {/* Alerta si no hay clientes */}
+          {clientes.length === 0 && (
+            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 text-yellow-700 font-medium mb-2">
+                <AlertCircle className="w-5 h-5" />
+                No hay clientes cargados
               </div>
+              <p className="text-yellow-600 text-sm mb-3">
+                Para poder agregar templates, primero necesitás cargar tus clientes
+              </p>
+              <button
+                onClick={() => setShowAddClientModal(true)}
+                className="flex items-center gap-2 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+              >
+                <UserPlus className="w-4 h-4" />
+                Agregar tu primer cliente
+              </button>
             </div>
           )}
 
           {/* Lista de templates */}
           {templates.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              <p className="text-lg mb-2">No hay facturas del mes anterior</p>
-              <p className="text-sm">Agregá templates manualmente o esperá al próximo mes</p>
+              <p className="text-lg mb-2">No hay templates cargados</p>
+              <p className="text-sm">
+                {clientes.length > 0 
+                  ? 'Hacé click en "Agregar Template" para crear uno'
+                  : 'Primero agregá clientes, luego podrás crear templates'
+                }
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -495,7 +516,10 @@ const TusFacturasApp = () => {
                       {editingField === `cliente-${template.id}` ? (
                         <select
                           value={template.clienteId}
-                          onChange={(e) => handleEdit(template.id, 'clienteId', e.target.value)}
+                          onChange={(e) => {
+                            handleEdit(template.id, 'clienteId', e.target.value);
+                            setEditingField(null);
+                          }}
                           onBlur={() => setEditingField(null)}
                           className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                           autoFocus
@@ -577,43 +601,128 @@ const TusFacturasApp = () => {
           )}
 
           {/* Panel de envío */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium text-blue-800">
-                    {selectedCount} facturas seleccionadas
-                  </span>
+          {templates.length > 0 && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-blue-800">
+                      {selectedCount} facturas seleccionadas
+                    </span>
+                  </div>
+                  <div className="text-blue-700">
+                    Total: <span className="font-bold font-mono">
+                      ${totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-blue-700">
-                  Total: <span className="font-bold font-mono">
-                    ${totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
+                
+                <button
+                  onClick={handleSendAll}
+                  disabled={selectedCount === 0 || sending}
+                  className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {sending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  {sending ? 'Enviando...' : `Enviar ${selectedCount} Facturas`}
+                </button>
               </div>
-              
-              <button
-                onClick={handleSendAll}
-                disabled={selectedCount === 0 || sending}
-                className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
-              >
-                {sending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                {sending ? 'Enviando...' : `Enviar ${selectedCount} Facturas`}
-              </button>
             </div>
-          </div>
+          )}
 
           <div className="mt-4 text-xs text-gray-500 space-y-1">
             <p>💡 <strong>Tip:</strong> Hacé click en cualquier campo para editarlo</p>
-            <p>🏷️ Los tags como {'{MM_AAAA_ANTERIOR_TEXTO}'} se procesan automáticamente en TusFacturas</p>
-            <p>🔄 Los templates se actualizan automáticamente cada mes desde tus facturas anteriores</p>
+            <p>🏷️ Los tags como {'{MM_AAAA_ANTERIOR_TEXTO}'} se procesan automáticamente</p>
           </div>
         </div>
+
+        {/* Modal agregar cliente */}
+        {showAddClientModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Agregar Nuevo Cliente</h3>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre / Razón Social *
+                  </label>
+                  <input
+                    type="text"
+                    value={newClient.nombre}
+                    onChange={(e) => setNewClient({ ...newClient, nombre: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ej: Empresa ABC S.A."
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    CUIT / DNI *
+                  </label>
+                  <input
+                    type="text"
+                    value={newClient.documento}
+                    onChange={(e) => setNewClient({ ...newClient, documento: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ej: 30123456789"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email (opcional)
+                  </label>
+                  <input
+                    type="email"
+                    value={newClient.email}
+                    onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ej: contacto@empresa.com"
+                  />
+                </div>
+
+                <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                  <p className="text-blue-800 text-xs">
+                    ℹ️ Si el cliente ya existe en TusFacturas, se asociará automáticamente. Si no existe, se creará nuevo.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowAddClientModal(false);
+                    setNewClient({ nombre: '', email: '', documento: '' });
+                  }}
+                  disabled={addingClient}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleAddClient}
+                  disabled={addingClient || !newClient.nombre || !newClient.documento}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {addingClient ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Agregando...
+                    </>
+                  ) : (
+                    'Agregar Cliente'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal de confirmación */}
         {showConfirmation && (
