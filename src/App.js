@@ -676,21 +676,24 @@ const TusFacturasApp = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email (opcional)
+                    Email (opcional - solo para clientes nuevos)
                   </label>
                   <input
                     type="email"
                     value={newClient.email}
                     onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Ej: contacto@empresa.com"
+                    placeholder="Dejá vacío si no querés agregar email"
                   />
                 </div>
 
                 <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                  <p className="text-blue-800 text-xs">
-                    ℹ️ Si el cliente ya existe en TusFacturas, se asociará automáticamente. Si no existe, se creará nuevo.
-                  </p>
+                  <p className="text-blue-800 text-sm font-medium mb-2">📧 ¿Cómo funciona el email?</p>
+                  <ul className="text-blue-700 text-xs space-y-1">
+                    <li>✅ <strong>Cliente existente:</strong> Se usa el email que ya tiene en TusFacturas (se ignora el que pongas acá)</li>
+                    <li>✅ <strong>Cliente nuevo:</strong> Se usa el email que pongas acá (o ninguno si lo dejás vacío)</li>
+                    <li>ℹ️ <strong>Múltiples emails:</strong> Si el cliente tiene varios en TusFacturas, se mantienen todos</li>
+                  </ul>
                 </div>
               </div>
               
