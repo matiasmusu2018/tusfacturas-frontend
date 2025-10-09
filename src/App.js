@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2, LogOut, UserPlus } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
@@ -24,6 +24,10 @@ const TusFacturasApp = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('checking');
+
+  // 🆕 Refs para debounce
+  const saveTemplatesTimeout = useRef(null);
+  const saveClientesTimeout = useRef(null);
 
   // Verificar sesión guardada
   useEffect(() => {
@@ -82,8 +86,14 @@ const TusFacturasApp = () => {
     }
   };
 
-  // 📥 Cargar datos
-  const cargarDatos = async () => {
+  // 📥 Cargar datos (mejorado - no recargar si hay edición activa)
+  const cargarDatos = async (forzar = false) => {
+    // No recargar si hay un campo siendo editado (a menos que sea forzado)
+    if (editingField && !forzar) {
+      console.log('⏸️  Edición activa, skip recarga');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -91,8 +101,8 @@ const TusFacturasApp = () => {
       console.log('🔄 Cargando datos...');
       
       const [clientesRes, templatesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/clientes`),
-        fetch(`${API_BASE_URL}/api/templates`)
+        fetch(`${API_BASE_URL}/api/clientes?reload=${forzar}`),
+        fetch(`${API_BASE_URL}/api/templates?reload=${forzar}`)
       ]);
       
       const clientesData = await clientesRes.json();
@@ -112,29 +122,57 @@ const TusFacturasApp = () => {
     }
   };
 
-  // 💾 Guardar templates
+  // 💾 Guardar templates con debounce
   const guardarTemplates = async (templatesActualizados) => {
     try {
-      await fetch(`${API_BASE_URL}/api/templates/guardar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templates: templatesActualizados })
-      });
-      console.log('💾 Templates guardados');
+      // Cancelar guardado pendiente anterior
+      if (saveTemplatesTimeout.current) {
+        clearTimeout(saveTemplatesTimeout.current);
+      }
+
+      // Guardar después de 800ms de inactividad
+      saveTemplatesTimeout.current = setTimeout(async () => {
+        console.log('💾 Guardando templates...');
+        const response = await fetch(`${API_BASE_URL}/api/templates/guardar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ templates: templatesActualizados })
+        });
+
+        if (response.ok) {
+          console.log('✅ Templates guardados');
+        } else {
+          console.error('❌ Error guardando templates');
+        }
+      }, 800);
+
     } catch (err) {
       console.error('Error guardando templates:', err);
     }
   };
 
-  // 💾 Guardar clientes
+  // 💾 Guardar clientes con debounce
   const guardarClientes = async (clientesActualizados) => {
     try {
-      await fetch(`${API_BASE_URL}/api/clientes/guardar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientes: clientesActualizados })
-      });
-      console.log('💾 Clientes guardados');
+      if (saveClientesTimeout.current) {
+        clearTimeout(saveClientesTimeout.current);
+      }
+
+      saveClientesTimeout.current = setTimeout(async () => {
+        console.log('💾 Guardando clientes...');
+        const response = await fetch(`${API_BASE_URL}/api/clientes/guardar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientes: clientesActualizados })
+        });
+
+        if (response.ok) {
+          console.log('✅ Clientes guardados');
+        } else {
+          console.error('❌ Error guardando clientes');
+        }
+      }, 800);
+
     } catch (err) {
       console.error('Error guardando clientes:', err);
     }
@@ -164,10 +202,8 @@ const TusFacturasApp = () => {
       if (result.success) {
         console.log('✅ Cliente agregado:', result.cliente);
         
-        // Agregar a la lista local
-        const clientesActualizados = [...clientes, result.cliente];
-        setClientes(clientesActualizados);
-        guardarClientes(clientesActualizados);
+        // Recargar desde el servidor (forzar)
+        await cargarDatos(true);
         
         // Cerrar modal y limpiar
         setShowAddClientModal(false);
@@ -194,11 +230,25 @@ const TusFacturasApp = () => {
     }
   };
 
-  // ✏️ Editar template - CORREGIDO para no perder focus
+  // ✏️ Editar template - CON VALIDACIONES
   const handleEdit = (id, field, value) => {
-    const updatedTemplates = templates.map(t => 
-      t.id === id ? { ...t, [field]: field === 'clienteId' ? parseInt(value) : value } : t
-    );
+    const updatedTemplates = templates.map(t => {
+      if (t.id === id) {
+        // Validar campo clienteId
+        if (field === 'clienteId') {
+          return { ...t, [field]: parseInt(value) || t.clienteId };
+        }
+        // Validar campo monto
+        if (field === 'monto') {
+          const montoNum = parseFloat(value);
+          return { ...t, [field]: isNaN(montoNum) ? 0 : montoNum };
+        }
+        // Otros campos (concepto, etc)
+        return { ...t, [field]: value };
+      }
+      return t;
+    });
+    
     setTemplates(updatedTemplates);
     guardarTemplates(updatedTemplates);
   };
@@ -211,9 +261,11 @@ const TusFacturasApp = () => {
 
   // ☑️ Toggle selección
   const toggleSelection = (id) => {
-    setTemplates(templates.map(t => 
+    const updatedTemplates = templates.map(t => 
       t.id === id ? { ...t, selected: !t.selected } : t
-    ));
+    );
+    setTemplates(updatedTemplates);
+    guardarTemplates(updatedTemplates);
   };
 
   // 🗑️ Eliminar template
@@ -245,7 +297,7 @@ const TusFacturasApp = () => {
   };
 
   const selectedCount = templates.filter(t => t.selected).length;
-  const totalAmount = templates.filter(t => t.selected).reduce((sum, t) => sum + t.monto, 0);
+  const totalAmount = templates.filter(t => t.selected).reduce((sum, t) => sum + (t.monto || 0), 0);
 
   const handleSendAll = () => {
     if (selectedCount === 0) return;
@@ -281,10 +333,9 @@ const TusFacturasApp = () => {
         modoPrueba: result.modo_prueba || false
       });
       
-      if (result.fallidas === 0) {
-        const updatedTemplates = templates.map(t => ({ ...t, selected: false }));
-        setTemplates(updatedTemplates);
-        guardarTemplates(updatedTemplates);
+      // Recargar datos después de enviar (forzar)
+      if (result.exitosas > 0) {
+        await cargarDatos(true);
       }
       
     } catch (err) {
@@ -389,10 +440,10 @@ const TusFacturasApp = () => {
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                   Facturas Automáticas
                   <button 
-                    onClick={cargarDatos}
+                    onClick={() => cargarDatos(true)}
                     disabled={loading}
                     className="p-1 text-gray-500 hover:text-blue-600 disabled:opacity-50"
-                    title="Sincronizar"
+                    title="Sincronizar (recarga desde JSONBin)"
                   >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   </button>
@@ -504,7 +555,7 @@ const TusFacturasApp = () => {
                 <div key={template.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <input
                     type="checkbox"
-                    checked={template.selected}
+                    checked={template.selected || false}
                     onChange={() => toggleSelection(template.id)}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                   />
@@ -546,7 +597,7 @@ const TusFacturasApp = () => {
                       {editingField === `concepto-${template.id}` ? (
                         <input
                           type="text"
-                          value={template.concepto}
+                          value={template.concepto || ''}
                           onChange={(e) => handleEdit(template.id, 'concepto', e.target.value)}
                           onBlur={() => setEditingField(null)}
                           onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
@@ -558,7 +609,7 @@ const TusFacturasApp = () => {
                           onClick={() => setEditingField(`concepto-${template.id}`)}
                           className="p-2 cursor-pointer hover:bg-white rounded text-sm"
                         >
-                          {template.concepto}
+                          {template.concepto || 'Sin concepto'}
                         </div>
                       )}
                     </div>
@@ -570,8 +621,8 @@ const TusFacturasApp = () => {
                         <input
                           type="number"
                           step="0.01"
-                          value={template.monto}
-                          onChange={(e) => handleEdit(template.id, 'monto', parseFloat(e.target.value) || 0)}
+                          value={template.monto || 0}
+                          onChange={(e) => handleEdit(template.id, 'monto', e.target.value)}
                           onBlur={() => setEditingField(null)}
                           onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
                           className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
@@ -582,7 +633,7 @@ const TusFacturasApp = () => {
                           onClick={() => setEditingField(`monto-${template.id}`)}
                           className="p-2 cursor-pointer hover:bg-white rounded font-mono text-sm"
                         >
-                          ${template.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                          ${(template.monto || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                         </div>
                       )}
                     </div>
@@ -637,6 +688,7 @@ const TusFacturasApp = () => {
           <div className="mt-4 text-xs text-gray-500 space-y-1">
             <p>💡 <strong>Tip:</strong> Hacé click en cualquier campo para editarlo</p>
             <p>🏷️ Los tags como {'{MM_AAAA_ANTERIOR_TEXTO}'} se procesan automáticamente</p>
+            <p>💾 Los cambios se guardan automáticamente en JSONBin</p>
           </div>
         </div>
 
