@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2, LogOut, UserPlus } from 'lucide-react';
+import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw, Building2, LogOut, UserPlus, Mail } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -12,7 +12,7 @@ const TusFacturasApp = () => {
   const [templates, setTemplates] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
-  const [newClient, setNewClient] = useState({ nombre: '', documento: '' });
+  const [newClient, setNewClient] = useState({ nombre: '', documento: '', email: '' });
   const [addingClient, setAddingClient] = useState(false);
   const [editingField, setEditingField] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -191,7 +191,7 @@ const TusFacturasApp = () => {
         await cargarDatos(true);
         
         setShowAddClientModal(false);
-        setNewClient({ nombre: '', documento: '' });
+        setNewClient({ nombre: '', documento: '', email: '' });
         
         setSuccess({
           exitosas: 1,
@@ -652,7 +652,7 @@ const TusFacturasApp = () => {
             <p>💡 <strong>Tip:</strong> Hacé click en cualquier campo para editarlo</p>
             <p>🏷️ Los tags como {'{MM_AAAA_ANTERIOR_TEXTO}'} se procesan automáticamente</p>
             <p>💾 Los cambios se guardan automáticamente en JSONBin</p>
-            <p>📧 <strong>Emails:</strong> TusFacturas envía automáticamente si el cliente tiene email configurado</p>
+            <p>📧 <strong>Emails:</strong> Se envían desde tu app → TusFacturas los usa para enviar las facturas</p>
           </div>
         </div>
 
@@ -689,13 +689,30 @@ const TusFacturasApp = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email (opcional)
+                  </label>
+                  <input
+                    type="email"
+                    value={newClient.email}
+                    onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ej: cliente@empresa.com"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Si agregás un email, TusFacturas enviará automáticamente las facturas por correo
+                  </p>
+                </div>
+
                 <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                  <p className="text-blue-800 text-sm font-medium mb-2">📧 ¿Cómo funciona el email?</p>
+                  <p className="text-blue-800 text-sm font-medium mb-2">📧 ¿Cómo funciona?</p>
                   <ul className="text-blue-700 text-xs space-y-1">
-                    <li>✅ Los emails se gestionan 100% en TusFacturas.app</li>
-                    <li>✅ Si el cliente ya existe, se usa el email que tiene configurado</li>
-                    <li>✅ Podés agregar/editar emails directamente en TusFacturas</li>
-                    <li>💡 Las facturas se envían automáticamente si el cliente tiene email</li>
+                    <li>✅ Guardamos el email en tu base de datos (JSONBin)</li>
+                    <li>✅ Al facturar, enviamos el email a TusFacturas</li>
+                    <li>✅ TusFacturas envía automáticamente la factura por correo</li>
+                    <li>💡 Podés agregar el email ahora o después</li>
                   </ul>
                 </div>
               </div>
@@ -704,7 +721,7 @@ const TusFacturasApp = () => {
                 <button
                   onClick={() => {
                     setShowAddClientModal(false);
-                    setNewClient({ nombre: '', documento: '' });
+                    setNewClient({ nombre: '', documento: '', email: '' });
                   }}
                   disabled={addingClient}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
@@ -748,7 +765,7 @@ const TusFacturasApp = () => {
                 <div className="bg-blue-50 p-3 rounded border border-blue-200">
                   <p className="text-blue-800 text-sm font-medium mb-1">📧 Envío de emails</p>
                   <p className="text-blue-700 text-xs">
-                    TusFacturas enviará automáticamente las facturas por email a los clientes que tengan email configurado en su sistema.
+                    TusFacturas enviará automáticamente las facturas por email a los clientes que tengan email configurado en tu app.
                   </p>
                 </div>
                 
