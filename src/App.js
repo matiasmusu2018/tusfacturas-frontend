@@ -4,17 +4,15 @@ import { Trash2, Plus, Send, Check, Loader2, AlertCircle, CheckCircle, RefreshCw
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 const TusFacturasApp = () => {
-  // 🔐 Estados de autenticación
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // 📊 Estados de la app
   const [templates, setTemplates] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
-  const [newClient, setNewClient] = useState({ nombre: '', email: '', documento: '' });
+  const [newClient, setNewClient] = useState({ nombre: '', documento: '' });
   const [addingClient, setAddingClient] = useState(false);
   const [editingField, setEditingField] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -25,11 +23,9 @@ const TusFacturasApp = () => {
   const [success, setSuccess] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('checking');
 
-  // 🆕 Refs para debounce
   const saveTemplatesTimeout = useRef(null);
   const saveClientesTimeout = useRef(null);
 
-  // Verificar sesión guardada
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('tusfacturas_auth');
     if (savedAuth === 'true') {
@@ -40,7 +36,6 @@ const TusFacturasApp = () => {
     }
   }, []);
 
-  // 🔐 Login
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoggingIn(true);
@@ -59,7 +54,6 @@ const TusFacturasApp = () => {
     setIsLoggingIn(false);
   };
 
-  // 🚪 Logout
   const handleLogout = () => {
     sessionStorage.removeItem('tusfacturas_auth');
     setIsAuthenticated(false);
@@ -68,7 +62,6 @@ const TusFacturasApp = () => {
     setLoginForm({ username: '', password: '' });
   };
 
-  // 🔌 Test de conexión
   const testConnection = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/test`);
@@ -86,9 +79,7 @@ const TusFacturasApp = () => {
     }
   };
 
-  // 📥 Cargar datos (mejorado - no recargar si hay edición activa)
   const cargarDatos = async (forzar = false) => {
-    // No recargar si hay un campo siendo editado (a menos que sea forzado)
     if (editingField && !forzar) {
       console.log('⏸️  Edición activa, skip recarga');
       return;
@@ -122,15 +113,12 @@ const TusFacturasApp = () => {
     }
   };
 
-  // 💾 Guardar templates con debounce
   const guardarTemplates = async (templatesActualizados) => {
     try {
-      // Cancelar guardado pendiente anterior
       if (saveTemplatesTimeout.current) {
         clearTimeout(saveTemplatesTimeout.current);
       }
 
-      // Guardar después de 800ms de inactividad
       saveTemplatesTimeout.current = setTimeout(async () => {
         console.log('💾 Guardando templates...');
         const response = await fetch(`${API_BASE_URL}/api/templates/guardar`, {
@@ -151,7 +139,6 @@ const TusFacturasApp = () => {
     }
   };
 
-  // 💾 Guardar clientes con debounce
   const guardarClientes = async (clientesActualizados) => {
     try {
       if (saveClientesTimeout.current) {
@@ -178,7 +165,6 @@ const TusFacturasApp = () => {
     }
   };
 
-  // ➕ Agregar cliente
   const handleAddClient = async () => {
     if (!newClient.nombre || !newClient.documento) {
       alert('Por favor completá nombre y CUIT/DNI');
@@ -202,12 +188,10 @@ const TusFacturasApp = () => {
       if (result.success) {
         console.log('✅ Cliente agregado:', result.cliente);
         
-        // Recargar desde el servidor (forzar)
         await cargarDatos(true);
         
-        // Cerrar modal y limpiar
         setShowAddClientModal(false);
-        setNewClient({ nombre: '', email: '', documento: '' });
+        setNewClient({ nombre: '', documento: '' });
         
         setSuccess({
           exitosas: 1,
@@ -230,20 +214,16 @@ const TusFacturasApp = () => {
     }
   };
 
-  // ✏️ Editar template - CON VALIDACIONES
   const handleEdit = (id, field, value) => {
     const updatedTemplates = templates.map(t => {
       if (t.id === id) {
-        // Validar campo clienteId
         if (field === 'clienteId') {
           return { ...t, [field]: parseInt(value) || t.clienteId };
         }
-        // Validar campo monto
         if (field === 'monto') {
           const montoNum = parseFloat(value);
           return { ...t, [field]: isNaN(montoNum) ? 0 : montoNum };
         }
-        // Otros campos (concepto, etc)
         return { ...t, [field]: value };
       }
       return t;
@@ -253,13 +233,11 @@ const TusFacturasApp = () => {
     guardarTemplates(updatedTemplates);
   };
 
-  // 🔍 Obtener nombre del cliente
   const getClienteName = (clienteId) => {
     const cliente = clientes.find(c => c.id === clienteId);
     return cliente ? cliente.nombre : 'Cliente no encontrado';
   };
 
-  // ☑️ Toggle selección
   const toggleSelection = (id) => {
     const updatedTemplates = templates.map(t => 
       t.id === id ? { ...t, selected: !t.selected } : t
@@ -268,14 +246,12 @@ const TusFacturasApp = () => {
     guardarTemplates(updatedTemplates);
   };
 
-  // 🗑️ Eliminar template
   const deleteTemplate = (id) => {
     const updatedTemplates = templates.filter(t => t.id !== id);
     setTemplates(updatedTemplates);
     guardarTemplates(updatedTemplates);
   };
 
-  // ➕ Agregar template
   const addTemplate = () => {
     if (clientes.length === 0) {
       alert('Primero agregá un cliente');
@@ -304,7 +280,6 @@ const TusFacturasApp = () => {
     setShowConfirmation(true);
   };
 
-  // 📤 Enviar facturas
   const confirmSend = async () => {
     setShowConfirmation(false);
     setSending(true);
@@ -333,7 +308,6 @@ const TusFacturasApp = () => {
         modoPrueba: result.modo_prueba || false
       });
       
-      // Recargar datos después de enviar (forzar)
       if (result.exitosas > 0) {
         await cargarDatos(true);
       }
@@ -346,7 +320,6 @@ const TusFacturasApp = () => {
     }
   };
 
-  // 🔐 PANTALLA DE LOGIN
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
@@ -413,7 +386,6 @@ const TusFacturasApp = () => {
     );
   }
 
-  // ⏳ PANTALLA DE CARGA
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -425,12 +397,10 @@ const TusFacturasApp = () => {
     );
   }
 
-  // 🏠 PANTALLA PRINCIPAL
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm border p-6">
-          {/* Header */}
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-start gap-4">
               <div className="p-2 bg-blue-50 rounded-lg">
@@ -495,7 +465,6 @@ const TusFacturasApp = () => {
             </div>
           </div>
 
-          {/* Mensajes */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
@@ -518,7 +487,6 @@ const TusFacturasApp = () => {
             </div>
           )}
 
-          {/* Alerta si no hay clientes */}
           {clientes.length === 0 && (
             <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-center gap-2 text-yellow-700 font-medium mb-2">
@@ -538,7 +506,6 @@ const TusFacturasApp = () => {
             </div>
           )}
 
-          {/* Lista de templates */}
           {templates.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <p className="text-lg mb-2">No hay templates cargados</p>
@@ -561,7 +528,6 @@ const TusFacturasApp = () => {
                   />
                   
                   <div className="flex-1 grid grid-cols-3 gap-4">
-                    {/* Cliente */}
                     <div>
                       <label className="text-xs text-gray-500 block mb-1">Cliente</label>
                       {editingField === `cliente-${template.id}` ? (
@@ -591,7 +557,6 @@ const TusFacturasApp = () => {
                       )}
                     </div>
 
-                    {/* Concepto */}
                     <div>
                       <label className="text-xs text-gray-500 block mb-1">Concepto</label>
                       {editingField === `concepto-${template.id}` ? (
@@ -614,7 +579,6 @@ const TusFacturasApp = () => {
                       )}
                     </div>
 
-                    {/* Monto */}
                     <div>
                       <label className="text-xs text-gray-500 block mb-1">Monto</label>
                       {editingField === `monto-${template.id}` ? (
@@ -651,7 +615,6 @@ const TusFacturasApp = () => {
             </div>
           )}
 
-          {/* Panel de envío */}
           {templates.length > 0 && (
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <div className="flex justify-between items-center">
@@ -689,10 +652,10 @@ const TusFacturasApp = () => {
             <p>💡 <strong>Tip:</strong> Hacé click en cualquier campo para editarlo</p>
             <p>🏷️ Los tags como {'{MM_AAAA_ANTERIOR_TEXTO}'} se procesan automáticamente</p>
             <p>💾 Los cambios se guardan automáticamente en JSONBin</p>
+            <p>📧 <strong>Emails:</strong> TusFacturas envía automáticamente si el cliente tiene email configurado</p>
           </div>
         </div>
 
-        {/* Modal agregar cliente */}
         {showAddClientModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
@@ -726,25 +689,13 @@ const TusFacturasApp = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email (opcional - solo para clientes nuevos)
-                  </label>
-                  <input
-                    type="email"
-                    value={newClient.email}
-                    onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Dejá vacío si no querés agregar email"
-                  />
-                </div>
-
                 <div className="bg-blue-50 p-3 rounded border border-blue-200">
                   <p className="text-blue-800 text-sm font-medium mb-2">📧 ¿Cómo funciona el email?</p>
                   <ul className="text-blue-700 text-xs space-y-1">
-                    <li>✅ <strong>Cliente existente:</strong> Se usa el email que ya tiene en TusFacturas (se ignora el que pongas acá)</li>
-                    <li>✅ <strong>Cliente nuevo:</strong> Se usa el email que pongas acá (o ninguno si lo dejás vacío)</li>
-                    <li>ℹ️ <strong>Múltiples emails:</strong> Si el cliente tiene varios en TusFacturas, se mantienen todos</li>
+                    <li>✅ Los emails se gestionan 100% en TusFacturas.app</li>
+                    <li>✅ Si el cliente ya existe, se usa el email que tiene configurado</li>
+                    <li>✅ Podés agregar/editar emails directamente en TusFacturas</li>
+                    <li>💡 Las facturas se envían automáticamente si el cliente tiene email</li>
                   </ul>
                 </div>
               </div>
@@ -753,7 +704,7 @@ const TusFacturasApp = () => {
                 <button
                   onClick={() => {
                     setShowAddClientModal(false);
-                    setNewClient({ nombre: '', email: '', documento: '' });
+                    setNewClient({ nombre: '', documento: '' });
                   }}
                   disabled={addingClient}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
@@ -779,7 +730,6 @@ const TusFacturasApp = () => {
           </div>
         )}
 
-        {/* Modal de confirmación */}
         {showConfirmation && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
@@ -794,6 +744,13 @@ const TusFacturasApp = () => {
                     ${totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                   </span>
                 </p>
+                
+                <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                  <p className="text-blue-800 text-sm font-medium mb-1">📧 Envío de emails</p>
+                  <p className="text-blue-700 text-xs">
+                    TusFacturas enviará automáticamente las facturas por email a los clientes que tengan email configurado en su sistema.
+                  </p>
+                </div>
                 
                 <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
                   <p className="text-yellow-800 text-sm font-medium">⚠️ Importante:</p>
